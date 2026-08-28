@@ -75,15 +75,25 @@ npm run android:apk
 
 ## 项目结构
 
-- `app/`：阅读器页面、解析、存储和交互逻辑
-- `public/`：PWA 清单、Service Worker 和图标
-- `worker/`：Cloudflare Worker 入口
-- `mobile/`：Android 离线前端入口和移动端样式
-- `android/`：Capacitor 原生 Android 工程
-- `docs/ANDROID.md`：Android 安装、数据与构建说明
-- `.openai/hosting.json`：Sites 托管配置
-- `PROJECT_STATUS.md`：当前项目状态与限制
-- `CHANGELOG.md`：版本更新记录
+```text
+yejian-novel-reader/
+├─ app/                 网页版入口（Vinext / React）
+├─ src/reader/          网页版与 Android 共用的阅读器核心
+├─ public/              网页版 PWA 图标、清单和 Service Worker
+├─ worker/              网页托管使用的 Cloudflare Worker
+├─ mobile/              Android 内嵌的离线网页外壳
+├─ android/             原生 Android / Capacitor 工程
+├─ docs/                项目文档、现状和更新记录
+├─ .openai/             Sites 托管配置
+└─ package.json         网页与 Android 的统一构建命令
+```
+
+快速辨认：
+
+- 只关心网页：查看 [`app/`](app/) 和 [`public/`](public/)。
+- 只关心手机 App：查看 [`mobile/`](mobile/) 和 [`android/`](android/)。
+- 修改两端共用功能：查看 `src/reader/`。
+- 查看说明：进入 [`docs/`](docs/)。
 
 ## 技术栈
 
