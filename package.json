@@ -1,6 +1,6 @@
 {
   "name": "yejian-novel-reader",
-  "version": "0.3.0",
+  "version": "0.3.4",
   "private": true,
   "description": "可安装到桌面的本地 TXT 小说阅读器",
   "engines": {
@@ -10,13 +10,21 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
+    "mobile:build": "vite build --config vite.mobile.config.ts",
+    "android:sync": "npm run mobile:build && cap sync android",
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {
+    "@capacitor-community/text-to-speech": "^8.0.2",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/filesystem": "^8.1.3",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@cloudflare/vite-plugin": "1.37.1",
     "@eslint/js": "9.39.4",
     "@next/eslint-plugin-next": "16.2.6",

@@ -2,7 +2,7 @@
 
 页间是一款以隐私和舒适阅读为核心的本地 TXT 小说阅读器。小说正文、阅读进度、书签和笔记保存在当前浏览器中，不会上传到服务器。
 
-当前版本：`v0.3.0`
+当前版本：`v0.3.4`
 
 ## 功能
 
@@ -18,6 +18,10 @@
 - 按章节范围导出 TXT：逐章、全部合并或每 N 章分组
 - 多个导出任务后台并行，不阻断阅读
 - PWA 桌面安装和应用外壳离线打开
+- Android 离线 APK：无需电脑或服务器即可阅读
+- 网页与 Android 原生听书，支持 0.3×–4.0× 语速、起点选择和睡眠定时
+- 听书段落高亮与跟随滚动，可连续朗读下一章
+- 1–10 档自动滚屏，到章末自动进入下一章
 
 ## 本地启动
 
@@ -36,6 +40,16 @@ npm run dev
 npm run build
 npm run start
 ```
+
+## Android 构建
+
+Android 版使用 Capacitor 封装，最低支持 Android 7.0。首次构建需要 JDK 21 和 Android SDK API 36。
+
+```bash
+npm run android:apk
+```
+
+生成的调试 APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。完整说明见 [`docs/ANDROID.md`](docs/ANDROID.md)。
 
 ## 使用提示
 
@@ -64,15 +78,17 @@ npm run start
 - `app/`：阅读器页面、解析、存储和交互逻辑
 - `public/`：PWA 清单、Service Worker 和图标
 - `worker/`：Cloudflare Worker 入口
+- `mobile/`：Android 离线前端入口和移动端样式
+- `android/`：Capacitor 原生 Android 工程
+- `docs/ANDROID.md`：Android 安装、数据与构建说明
 - `.openai/hosting.json`：Sites 托管配置
 - `PROJECT_STATUS.md`：当前项目状态与限制
 - `CHANGELOG.md`：版本更新记录
 
 ## 技术栈
 
-React 19、TypeScript、Vinext、Vite、Cloudflare Workers、IndexedDB、PWA。
+React 19、TypeScript、Vinext、Vite、Cloudflare Workers、IndexedDB、PWA、Capacitor、Android TTS。
 
 ## 隐私与版权
 
 应用不主动上传小说内容。请仅整理和阅读自己合法持有的文本，不要传播未经授权的作品。
-

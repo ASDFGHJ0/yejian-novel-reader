@@ -3,6 +3,11 @@ node_modules/
 .vinext/
 .wrangler/
 dist/
+dist-mobile/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
 .env
 .env.*
 !.env.example
@@ -12,4 +17,3 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
-
