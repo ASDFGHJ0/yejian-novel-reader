@@ -34,16 +34,10 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
 
-        <service
-            android:name=".BackgroundTtsService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
     </application>
 
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 </manifest>
