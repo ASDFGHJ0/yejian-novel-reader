@@ -1,6 +1,6 @@
 {
   "name": "yejian-novel-reader",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "private": true,
   "description": "可安装到桌面的本地 TXT 小说阅读器",
   "engines": {

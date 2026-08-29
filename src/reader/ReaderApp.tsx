@@ -90,6 +90,8 @@ export default function ReaderApp() {
   const ttsParts = useRef<SpeechPart[]>([]);
   const ttsIndex = useRef(0);
   const nativeTtsBase = useRef(0);
+  const nativeTtsStarted = useRef(false);
+  const nativeTtsTimer = useRef<number | undefined>(undefined);
   const ttsAutoReadRef = useRef(true);
   const ttsRateRef = useRef(1);
   const activeRef = useRef<BookMeta | null>(null);
@@ -233,10 +235,19 @@ export default function ReaderApp() {
   async function playNativeTts(token: number) {
     try {
       nativeTtsBase.current = ttsIndex.current;
+      nativeTtsStarted.current = false;
       const remaining = ttsParts.current.slice(ttsIndex.current);
       if (!remaining.length) { void finishTts(token); return; }
       syncTtsParagraph(remaining[0].paragraph);
       await BackgroundTts.start({ texts: remaining.map(part => part.text), rate: ttsRateRef.current, session: token });
+      window.clearTimeout(nativeTtsTimer.current);
+      nativeTtsTimer.current = window.setTimeout(() => {
+        if (token === ttsToken.current && !nativeTtsStarted.current) {
+          setTtsStatus("idle");
+          setError("手机语音引擎没有开始播放，请检查系统“文字转语音”中的中文语音包，并调高媒体音量。");
+          void BackgroundTts.stop().catch(() => undefined);
+        }
+      }, 8000);
     } catch (reason) {
       if (token === ttsToken.current) {
         console.error(reason);
@@ -340,6 +351,7 @@ export default function ReaderApp() {
   }
 
   async function stopTts() {
+    window.clearTimeout(nativeTtsTimer.current);
     ttsToken.current += 1;
     ttsIndex.current = 0;
     if (IS_NATIVE_APP) await BackgroundTts.stop().catch(() => undefined);
@@ -351,6 +363,7 @@ export default function ReaderApp() {
   }
 
   useEffect(() => () => {
+    window.clearTimeout(nativeTtsTimer.current);
     ttsToken.current += 1;
     if (IS_NATIVE_APP) void BackgroundTts.stop().catch(() => undefined);
     else if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -363,14 +376,18 @@ export default function ReaderApp() {
     void BackgroundTts.addListener("stateChange", event => {
       if (disposed || event.session !== ttsToken.current) return;
       if (event.state === "sentence" && event.index !== undefined) {
+        nativeTtsStarted.current = true;
+        window.clearTimeout(nativeTtsTimer.current);
         const absoluteIndex = nativeTtsBase.current + event.index;
         ttsIndex.current = absoluteIndex;
         const part = ttsParts.current[absoluteIndex];
         if (part) syncTtsParagraph(part.paragraph);
       } else if (event.state === "completed") {
+        window.clearTimeout(nativeTtsTimer.current);
         ttsIndex.current = ttsParts.current.length;
         void finishTts(event.session);
       } else if (event.state === "error") {
+        window.clearTimeout(nativeTtsTimer.current);
         setTtsStatus("idle");
         setError(event.message || "听书启动失败，请确认手机已安装中文语音引擎。");
       }
@@ -828,7 +845,7 @@ export default function ReaderApp() {
       </footer>
     </article>
     {selectionMenu && <div className="selectionMenu" style={{ left: selectionMenu.x, top: selectionMenu.y }} onClick={e => e.stopPropagation()}><small>已选择 {selectionMenu.quote.length} 个字</small><button onClick={() => addNote(selectionMenu.quote, false)}>标记摘录</button><button onClick={() => addNote(selectionMenu.quote, true)}>添加笔记</button></div>}
-    {toc && <aside><button className="close" onClick={() => setToc(false)}>×</button><em>CONTENTS</em><h2>{active.title}</h2><small className="tocHint">共 {active.chapterTitles.length} 章 · 已读 {readPercent(active)}%</small><div className="tocList">{active.chapterTitles.map((title, i) => <button className={i === active.current ? "on" : ""} onClick={() => jump(i)} key={i}><span>{String(i + 1).padStart(2, "0")}</span>{title}</button>)}</div></aside>}
+    {toc && <aside className="tocPanel"><button className="close" onClick={() => setToc(false)} aria-label="关闭目录">×</button><em>CONTENTS</em><h2>{active.title}</h2><small className="tocHint">共 {active.chapterTitles.length} 章 · 已读 {readPercent(active)}%</small><div className="tocList">{active.chapterTitles.map((title, i) => <button className={i === active.current ? "on" : ""} onClick={() => jump(i)} key={i}><span>{String(i + 1).padStart(2, "0")}</span>{title}</button>)}</div></aside>}
     {settingsOpen && <div className="modalShade" onClick={() => setSettingsOpen(false)}><section className="settingsPanel" onClick={e => e.stopPropagation()}><button className="modalClose" onClick={() => setSettingsOpen(false)}>×</button><em>READING SETTINGS</em><h2>阅读设置</h2><label>字号 <b>{settings.font}px</b><input type="range" min="16" max="30" value={settings.font} onChange={e => setSettings({ ...settings, font: +e.target.value })} /></label><label>行距 <b>{settings.lineHeight.toFixed(1)}</b><input type="range" min="1.5" max="2.8" step="0.1" value={settings.lineHeight} onChange={e => setSettings({ ...settings, lineHeight: +e.target.value })} /></label><label>页面宽度 <b>{settings.width}px</b><input type="range" min="560" max="900" step="20" value={settings.width} onChange={e => setSettings({ ...settings, width: +e.target.value })} /></label><div className="choiceRow"><button className={settings.family === "serif" ? "on" : ""} onClick={() => setSettings({ ...settings, family: "serif" })}>宋体</button><button className={settings.family === "kai" ? "on" : ""} onClick={() => setSettings({ ...settings, family: "kai" })}>楷体</button><button className={settings.family === "sans" ? "on" : ""} onClick={() => setSettings({ ...settings, family: "sans" })}>黑体</button></div><div className="choiceRow"><button onClick={() => setTheme("paper")}>米白</button><button onClick={() => setTheme("green")}>护眼</button><button onClick={() => setTheme("night")}>夜间</button></div></section></div>}
     {notesOpen && <div className="modalShade" onClick={() => setNotesOpen(false)}><section className="notesPanel" onClick={e => e.stopPropagation()}><button className="modalClose" onClick={() => setNotesOpen(false)}>×</button><em>BOOKMARKS & NOTES</em><h2>书签与笔记</h2><h3>章节书签</h3><div className="bookmarkList">{(active.bookmarks || []).map(index => <button onClick={() => jump(index)} key={index}><span>★</span>{active.chapterTitles[index]}</button>)}{!(active.bookmarks || []).length && <p>还没有书签，阅读时点击顶部的 ☆ 即可添加。</p>}</div><h3>文字摘录</h3><div className="noteList">{(active.notes || []).map(note => <article key={note.id}><button className="noteOpen" onClick={() => openNote(note)}><small>{active.chapterTitles[note.chapter]}</small><blockquote>{note.quote}</blockquote>{note.text && <p>{note.text}</p>}</button><button className="noteDelete" onClick={() => removeNote(note.id)}>删除</button></article>)}{!(active.notes || []).length && <p>选中正文中的文字，再点击顶部“摘录”。</p>}</div></section></div>}
     {!!exportJobs.length && <aside className="exportJobs"><header><b>导出任务</b><button onClick={() => setExportJobs(old => old.filter(job => job.status === "running"))}>清除已完成</button></header>{exportJobs.map(job => <article key={job.id} className={job.status}><div><b>{job.title}</b><span>{job.status === "running" ? `${job.current} / ${job.total}` : job.status === "done" ? "已完成" : "失败"}</span></div><small>{job.detail}</small><div className="jobProgress"><i style={{ width: `${Math.round(job.current / job.total * 100)}%` }} /></div>{job.error && <p>{job.error}</p>}</article>)}</aside>}

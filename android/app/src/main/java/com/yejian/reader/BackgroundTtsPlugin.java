@@ -1,6 +1,7 @@
 package com.yejian.reader;
 
 import android.content.Context;
+import android.media.AudioAttributes;
 import android.os.PowerManager;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
@@ -43,7 +44,7 @@ public class BackgroundTtsPlugin extends Plugin implements TextToSpeech.OnInitLi
         try {
             acquireWakeLock();
             if (tts == null) tts = new TextToSpeech(getContext(), this);
-            else if (ready) queueFromCurrent();
+            else if (ready) speakCurrent();
             call.resolve();
         } catch (Exception error) {
             releaseWakeLock();
@@ -58,7 +59,16 @@ public class BackgroundTtsPlugin extends Plugin implements TextToSpeech.OnInitLi
             releaseWakeLock();
             return;
         }
-        tts.setLanguage(Locale.SIMPLIFIED_CHINESE);
+        int language = tts.setLanguage(Locale.CHINA);
+        if (language == TextToSpeech.LANG_MISSING_DATA || language == TextToSpeech.LANG_NOT_SUPPORTED) {
+            emit("error", -1, "手机语音引擎缺少中文语音，请在系统文字转语音设置中安装中文语音包");
+            releaseWakeLock();
+            return;
+        }
+        tts.setAudioAttributes(new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build());
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override public void onStart(String utteranceId) {
                 int playing = parseIndex(utteranceId);
@@ -66,27 +76,29 @@ public class BackgroundTtsPlugin extends Plugin implements TextToSpeech.OnInitLi
             }
             @Override public void onDone(String utteranceId) {
                 int finished = parseIndex(utteranceId);
-                if (finished == texts.size() - 1) {
+                if (finished >= 0) index = finished + 1;
+                if (index >= texts.size()) {
                     index = texts.size();
                     releaseWakeLock();
                     emit("completed", index, null);
-                }
+                } else speakCurrent();
             }
             @Override public void onError(String utteranceId) {
                 releaseWakeLock();
                 emit("error", parseIndex(utteranceId), "朗读过程中发生错误");
             }
         });
-        if (pendingStart) queueFromCurrent();
+        if (pendingStart) speakCurrent();
     }
 
-    private synchronized void queueFromCurrent() {
+    private synchronized void speakCurrent() {
         if (!ready || tts == null || index >= texts.size()) return;
         pendingStart = false;
-        tts.stop();
         tts.setSpeechRate(rate);
-        for (int item = index; item < texts.size(); item++) {
-            tts.speak(texts.get(item), item == index ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, null, session + ":" + item);
+        int result = tts.speak(texts.get(index), TextToSpeech.QUEUE_FLUSH, null, session + ":" + index);
+        if (result == TextToSpeech.ERROR) {
+            releaseWakeLock();
+            emit("error", index, "手机语音引擎拒绝朗读，请检查系统文字转语音设置和媒体音量");
         }
     }
 
@@ -98,7 +110,7 @@ public class BackgroundTtsPlugin extends Plugin implements TextToSpeech.OnInitLi
 
     @PluginMethod public void resume(PluginCall call) {
         acquireWakeLock();
-        queueFromCurrent();
+        speakCurrent();
         call.resolve();
     }
 
