@@ -4,6 +4,16 @@
 
 当前版本：`v0.3.9`
 
+## 直接使用
+
+| 版本 | 适合谁 | 下载或打开 |
+|---|---|---|
+| Android APK | 安卓手机和平板 | [下载安卓安装包](https://github.com/ASDFGHJ0/yejian-novel-reader/releases/latest/download/yejian-android.apk) |
+| 本地网页版 | Windows 电脑，希望书架完全保存在本机 | [下载网页版 ZIP](https://github.com/ASDFGHJ0/yejian-novel-reader/releases/latest/download/yejian-web-windows.zip) |
+| 开发源码 | 需要自行修改或构建 | [查看最新发行版](https://github.com/ASDFGHJ0/yejian-novel-reader/releases/latest) |
+
+网页版 ZIP 解压后，双击 `启动页间网页版.cmd`。电脑需要 Node.js 22 或更高版本；第一次启动会自动安装运行组件。
+
 ## 功能
 
 - 导入 UTF-8、GBK / GB18030、Big5 编码的 TXT
@@ -21,7 +31,7 @@
 - Android 离线 APK：无需电脑或服务器即可阅读
 - 网页与 Android 原生听书，支持 0.3×–4.0× 语速、起点选择和睡眠定时
 - 听书段落高亮与跟随滚动，可连续朗读下一章
-- 1–10 档自动滚屏，到章末自动进入下一章
+- 慢速、标准、较快、快速四档自动滚屏，到章末自动进入下一章
 
 ## 本地启动
 
