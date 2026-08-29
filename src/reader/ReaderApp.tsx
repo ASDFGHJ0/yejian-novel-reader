@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
-import { BackgroundTts } from "./nativeTts";
+import { QueueStrategy, TextToSpeech } from "@capacitor-community/text-to-speech";
 
 import type {
   BackupFile,
@@ -90,8 +90,6 @@ export default function ReaderApp() {
   const ttsParts = useRef<SpeechPart[]>([]);
   const ttsIndex = useRef(0);
   const nativeTtsBase = useRef(0);
-  const nativeTtsStarted = useRef(false);
-  const nativeTtsTimer = useRef<number | undefined>(undefined);
   const ttsAutoReadRef = useRef(true);
   const ttsRateRef = useRef(1);
   const activeRef = useRef<BookMeta | null>(null);
@@ -235,19 +233,25 @@ export default function ReaderApp() {
   async function playNativeTts(token: number) {
     try {
       nativeTtsBase.current = ttsIndex.current;
-      nativeTtsStarted.current = false;
       const remaining = ttsParts.current.slice(ttsIndex.current);
       if (!remaining.length) { void finishTts(token); return; }
       syncTtsParagraph(remaining[0].paragraph);
-      await BackgroundTts.start({ texts: remaining.map(part => part.text), rate: ttsRateRef.current, session: token });
-      window.clearTimeout(nativeTtsTimer.current);
-      nativeTtsTimer.current = window.setTimeout(() => {
-        if (token === ttsToken.current && !nativeTtsStarted.current) {
-          setTtsStatus("idle");
-          setError("手机语音引擎没有开始播放，请检查系统“文字转语音”中的中文语音包，并调高媒体音量。");
-          void BackgroundTts.stop().catch(() => undefined);
-        }
-      }, 8000);
+      const jobs = remaining.map((part, offset) => TextToSpeech.speak({
+        text: part.text,
+        lang: "zh-CN",
+        rate: ttsRateRef.current,
+        pitch: 1,
+        volume: 1,
+        queueStrategy: offset === 0 ? QueueStrategy.Flush : QueueStrategy.Add,
+      }).then(() => {
+        if (token !== ttsToken.current) return;
+        const nextIndex = nativeTtsBase.current + offset + 1;
+        ttsIndex.current = nextIndex;
+        const next = ttsParts.current[nextIndex];
+        if (next) syncTtsParagraph(next.paragraph);
+      }));
+      await Promise.all(jobs);
+      if (token === ttsToken.current) void finishTts(token);
     } catch (reason) {
       if (token === ttsToken.current) {
         console.error(reason);
@@ -287,7 +291,8 @@ export default function ReaderApp() {
     if (!chapter) return;
     if (ttsStatus === "playing") {
       if (IS_NATIVE_APP) {
-        await BackgroundTts.pause();
+        ttsToken.current += 1;
+        await TextToSpeech.stop().catch(() => undefined);
       } else window.speechSynthesis.pause();
       setTtsStatus("paused");
       return;
@@ -295,7 +300,8 @@ export default function ReaderApp() {
     if (ttsStatus === "paused") {
       setTtsStatus("playing");
       if (IS_NATIVE_APP) {
-        await BackgroundTts.resume();
+        const token = ++ttsToken.current;
+        void playNativeTts(token);
       } else window.speechSynthesis.resume();
       return;
     }
@@ -313,7 +319,7 @@ export default function ReaderApp() {
   async function startTtsFrom(parts: SpeechPart[]) {
     setAutoScroll(false);
     ttsToken.current += 1;
-    if (IS_NATIVE_APP) await BackgroundTts.stop().catch(() => undefined);
+    if (IS_NATIVE_APP) await TextToSpeech.stop().catch(() => undefined);
     else if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     ttsParts.current = parts;
     ttsIndex.current = 0;
@@ -334,7 +340,7 @@ export default function ReaderApp() {
     if (ttsStatus !== "playing") return;
     const index = ttsIndex.current;
     ttsToken.current += 1;
-    if (IS_NATIVE_APP) await BackgroundTts.stop().catch(() => undefined);
+    if (IS_NATIVE_APP) await TextToSpeech.stop().catch(() => undefined);
     else if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     ttsIndex.current = index;
     const token = ++ttsToken.current;
@@ -351,10 +357,9 @@ export default function ReaderApp() {
   }
 
   async function stopTts() {
-    window.clearTimeout(nativeTtsTimer.current);
     ttsToken.current += 1;
     ttsIndex.current = 0;
-    if (IS_NATIVE_APP) await BackgroundTts.stop().catch(() => undefined);
+    if (IS_NATIVE_APP) await TextToSpeech.stop().catch(() => undefined);
     else if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setTtsStatus("idle");
     setTtsPickStart(false);
@@ -363,36 +368,9 @@ export default function ReaderApp() {
   }
 
   useEffect(() => () => {
-    window.clearTimeout(nativeTtsTimer.current);
     ttsToken.current += 1;
-    if (IS_NATIVE_APP) void BackgroundTts.stop().catch(() => undefined);
+    if (IS_NATIVE_APP) void TextToSpeech.stop().catch(() => undefined);
     else if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-  }, []);
-
-  useEffect(() => {
-    if (!IS_NATIVE_APP) return;
-    let disposed = false;
-    let handle: { remove: () => Promise<void> } | undefined;
-    void BackgroundTts.addListener("stateChange", event => {
-      if (disposed || event.session !== ttsToken.current) return;
-      if (event.state === "sentence" && event.index !== undefined) {
-        nativeTtsStarted.current = true;
-        window.clearTimeout(nativeTtsTimer.current);
-        const absoluteIndex = nativeTtsBase.current + event.index;
-        ttsIndex.current = absoluteIndex;
-        const part = ttsParts.current[absoluteIndex];
-        if (part) syncTtsParagraph(part.paragraph);
-      } else if (event.state === "completed") {
-        window.clearTimeout(nativeTtsTimer.current);
-        ttsIndex.current = ttsParts.current.length;
-        void finishTts(event.session);
-      } else if (event.state === "error") {
-        window.clearTimeout(nativeTtsTimer.current);
-        setTtsStatus("idle");
-        setError(event.message || "听书启动失败，请确认手机已安装中文语音引擎。");
-      }
-    }).then(listener => { handle = listener; });
-    return () => { disposed = true; void handle?.remove(); };
   }, []);
 
   useEffect(() => {
