@@ -1,6 +1,6 @@
 {
   "name": "yejian-novel-reader",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "private": true,
   "description": "可安装到桌面的本地 TXT 小说阅读器",
   "engines": {
@@ -16,7 +16,6 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {
-    "@capacitor-community/text-to-speech": "^8.0.2",
     "@capacitor/android": "^8.5.0",
     "@capacitor/core": "^8.5.0",
     "@capacitor/filesystem": "^8.1.3",

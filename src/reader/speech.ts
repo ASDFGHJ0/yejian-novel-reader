@@ -1,20 +1,14 @@
 import type { Chapter, SpeechPart } from "./types";
 
-function speechChunks(text: string, maxLength = 420) {
+function speechChunks(text: string, maxLength = 180) {
   const sentences = text.replace(/\s+/g, " ").match(/[^。！？!?；;]+[。！？!?；;]?/g) || [text];
-  const chunks: string[] = [];
-  let current = "";
-  sentences.forEach(sentence => {
-    if (current && current.length + sentence.length > maxLength) {
-      chunks.push(current.trim());
-      current = "";
-    }
-    if (sentence.length > maxLength) {
-      for (let index = 0; index < sentence.length; index += maxLength) chunks.push(sentence.slice(index, index + maxLength).trim());
-    } else current += sentence;
+  return sentences.flatMap(sentence => {
+    const clean = sentence.trim();
+    if (clean.length <= maxLength) return clean ? [clean] : [];
+    const chunks: string[] = [];
+    for (let index = 0; index < clean.length; index += maxLength) chunks.push(clean.slice(index, index + maxLength));
+    return chunks;
   });
-  if (current.trim()) chunks.push(current.trim());
-  return chunks.filter(Boolean);
 }
 
 export function chapterSpeechParts(chapter: Chapter, startParagraph = 0, includeTitle = true): SpeechPart[] {
