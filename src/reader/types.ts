@@ -1,0 +1,14 @@
+export type Chapter = { title: string; content: string };
+export type Note = { id: string; chapter: number; quote: string; text: string; createdAt: number };
+export type BookMeta = { id: string; title: string; chapterTitles: string[]; at: number; createdAt?: number; current: number; size: number; scroll?: number; bookmarks?: number[]; notes?: Note[]; readSeconds?: number };
+export type BookRecord = BookMeta & { chapters: Chapter[] };
+export type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
+export type ReaderSettings = { font: number; lineHeight: number; width: number; family: string };
+export type SearchHit = { book: BookMeta; chapterIndex: number; chapterTitle: string; excerpt: string };
+export type BackupFile = { format: "yejian-library"; version: 1; exportedAt: string; books: BookRecord[] };
+export type TxtEncoding = "auto" | "utf-8" | "gb18030" | "big5";
+export type ExportFileHandle = { createWritable: () => Promise<{ write: (data: string) => Promise<void>; close: () => Promise<void> }> };
+export type ExportDirectoryHandle = { getDirectoryHandle: (name: string, options?: { create?: boolean }) => Promise<ExportDirectoryHandle>; getFileHandle: (name: string, options?: { create?: boolean }) => Promise<ExportFileHandle> };
+export type ExportMode = "separate" | "merged" | "grouped";
+export type ExportJob = { id: string; title: string; detail: string; current: number; total: number; status: "running" | "done" | "error"; error?: string };
+export type SpeechPart = { text: string; paragraph: number };
