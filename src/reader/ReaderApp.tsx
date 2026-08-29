@@ -83,7 +83,7 @@ export default function ReaderApp() {
   const [ttsRemaining, setTtsRemaining] = useState(0);
   const [ttsActiveParagraph, setTtsActiveParagraph] = useState(-1);
   const [autoScroll, setAutoScroll] = useState(false);
-  const [autoScrollSpeed, setAutoScrollSpeed] = useState(4);
+  const [autoScrollSpeed, setAutoScrollSpeed] = useState(2);
   const input = useRef<HTMLInputElement>(null);
   const backupInput = useRef<HTMLInputElement>(null);
   const ttsToken = useRef(0);
@@ -438,7 +438,7 @@ export default function ReaderApp() {
     const move = (now: number) => {
       const elapsed = Math.min(100, now - last);
       last = now;
-      const pixelsPerSecond = 45 + autoScrollSpeed * 35;
+      const pixelsPerSecond = [0, 70, 110, 155, 205][autoScrollSpeed] || 110;
       window.scrollBy(0, pixelsPerSecond * elapsed / 1000);
       const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
       if (atBottom) void advanceAutoScrollChapter();
@@ -817,7 +817,7 @@ export default function ReaderApp() {
     </header>
     <div className="readingProgress"><i style={{ width: `${readPercent(active)}%` }} /></div>
     {ttsStatus !== "idle" && <div className="ttsBar"><div className="ttsMain"><button onClick={toggleTts}>{ttsStatus === "playing" ? "Ⅱ 暂停" : "▶ 继续"}</button><label>语速 <input type="range" min="0.3" max="4" step="0.1" value={ttsRate} onChange={event => selectTtsRate(+event.target.value)} onPointerUp={() => void applyTtsRate()} /><b>{ttsRate.toFixed(1)}×</b></label><button onClick={() => void stopTts()}>■ 停止</button></div><div className="ttsRates">{[0.5, 1, 1.5, 2, 3, 4].map(rate => <button className={ttsRate === rate ? "on" : ""} onClick={() => void applyTtsRate(rate)} key={rate}>{rate}×</button>)}</div><div className="ttsOptions"><button className={ttsPickStart ? "on" : ""} onClick={() => setTtsPickStart(value => !value)}>{ttsPickStart ? "点击正文段落" : "选择起点"}</button><label className="autoRead"><input type="checkbox" checked={ttsAutoRead} onChange={event => setTtsAutoRead(event.target.checked)} /> 连续朗读下一章</label><label>定时 <select value={ttsDeadline ? "active" : "0"} onChange={event => setSleepTimer(+event.target.value)}><option value="0">关闭</option>{ttsDeadline && <option value="active" disabled>{Math.ceil(ttsRemaining / 60)} 分钟后停止</option>}<option value="15">15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option><option value="90">90 分钟</option></select></label>{ttsDeadline && <b className="ttsCountdown">{String(Math.floor(ttsRemaining / 60)).padStart(2, "0")}:{String(ttsRemaining % 60).padStart(2, "0")}</b>}</div></div>}
-    {autoScroll && <div className="autoScrollBar"><b>⇣ 自动阅读</b><label>滚动速度 <input type="range" min="1" max="10" step="1" value={autoScrollSpeed} onChange={event => setAutoScrollSpeed(+event.target.value)} /><span>{autoScrollSpeed}档</span></label><button onClick={() => setAutoScroll(false)}>Ⅱ 暂停</button></div>}
+    {autoScroll && <div className="autoScrollBar"><b>⇣ 自动阅读</b><div className="autoSpeedChoices" aria-label="滚动速度">{["慢速", "标准", "较快", "快速"].map((label, index) => <button className={autoScrollSpeed === index + 1 ? "on" : ""} onClick={() => setAutoScrollSpeed(index + 1)} key={label}>{label}</button>)}</div><button onClick={() => setAutoScroll(false)}>Ⅱ 暂停</button></div>}
     <article className={ttsPickStart ? "pickTtsStart" : ""} onContextMenu={openSelectionMenu} style={{ fontSize: settings.font, lineHeight: settings.lineHeight, maxWidth: settings.width, fontFamily: settings.family === "serif" ? "var(--serif)" : settings.family === "kai" ? "KaiTi, STKaiti, serif" : "Arial, Microsoft YaHei, sans-serif" }}>
       <i>{String(active.current + 1).padStart(2, "0")}</i><h1>{chapter.title}</h1>
       {chapter.content.split(/\n+/).filter(Boolean).map((p, i) => <p className={ttsActiveParagraph === i ? "ttsReading" : ""} data-tts-paragraph={i} key={i} onClick={() => ttsPickStart && void startTtsAtParagraph(i)}>{renderMarkedText(p, (active.notes || []).filter(note => note.chapter === (active.current || 0)))}</p>)}

@@ -23,6 +23,9 @@ public class BackgroundTtsService extends Service implements TextToSpeech.OnInit
     public static final String ACTION_EVENT = "com.yejian.reader.tts.EVENT";
     private static final String CHANNEL_ID = "yejian_tts";
     private static final int NOTIFICATION_ID = 7301;
+    private static ArrayList<String> pendingTexts = new ArrayList<>();
+    private static float pendingRate = 1f;
+    private static int pendingSession = 0;
 
     private TextToSpeech tts;
     private ArrayList<String> texts = new ArrayList<>();
@@ -32,6 +35,12 @@ public class BackgroundTtsService extends Service implements TextToSpeech.OnInit
     private boolean paused = false;
     private int session = 0;
     private PowerManager.WakeLock wakeLock;
+
+    public static synchronized void prepare(ArrayList<String> values, float speechRate, int sessionId) {
+        pendingTexts = new ArrayList<>(values);
+        pendingRate = speechRate;
+        pendingSession = sessionId;
+    }
 
     @Override public void onCreate() {
         super.onCreate();
@@ -44,10 +53,12 @@ public class BackgroundTtsService extends Service implements TextToSpeech.OnInit
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? null : intent.getAction();
         if (ACTION_START.equals(action)) {
-            ArrayList<String> incoming = intent.getStringArrayListExtra("texts");
-            texts = incoming == null ? new ArrayList<>() : incoming;
-            rate = intent.getFloatExtra("rate", 1f);
-            session = intent.getIntExtra("session", 0);
+            synchronized (BackgroundTtsService.class) {
+                texts = new ArrayList<>(pendingTexts);
+                rate = pendingRate;
+                session = pendingSession;
+                pendingTexts.clear();
+            }
             index = 0;
             paused = false;
             startForeground(NOTIFICATION_ID, notification("正在准备听书…"));

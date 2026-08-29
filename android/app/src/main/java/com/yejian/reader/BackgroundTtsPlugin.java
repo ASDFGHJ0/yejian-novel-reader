@@ -48,12 +48,14 @@ public class BackgroundTtsPlugin extends Plugin {
         } catch (Exception error) { call.reject("朗读文字格式错误", error); return; }
         Intent intent = new Intent(getContext(), BackgroundTtsService.class);
         intent.setAction(BackgroundTtsService.ACTION_START);
-        intent.putStringArrayListExtra("texts", texts);
-        intent.putExtra("rate", call.getFloat("rate", 1f));
-        intent.putExtra("session", call.getInt("session", 0));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) getContext().startForegroundService(intent);
-        else getContext().startService(intent);
-        call.resolve();
+        BackgroundTtsService.prepare(texts, call.getFloat("rate", 1f), call.getInt("session", 0));
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) getContext().startForegroundService(intent);
+            else getContext().startService(intent);
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("无法启动后台听书服务", error);
+        }
     }
 
     @PluginMethod public void pause(PluginCall call) { command(BackgroundTtsService.ACTION_PAUSE); call.resolve(); }
