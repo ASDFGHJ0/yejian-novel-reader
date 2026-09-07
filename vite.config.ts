@@ -45,6 +45,8 @@ export default defineConfig(async () => {
 
   return {
     server: {
+      port: 3010,
+      strictPort: true,
       // Browser errors remain visible in DevTools without triggering Vite's recursive socket error.
       forwardConsole: false,
       ...(isCodexSeatbeltSandbox

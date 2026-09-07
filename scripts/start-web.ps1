@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $projectDir = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectDir
 
@@ -24,9 +24,12 @@ if (-not (Test-Path -LiteralPath (Join-Path $projectDir 'node_modules\.bin\vinex
     if ($LASTEXITCODE -ne 0) { Stop-WithMessage '运行组件安装失败，请检查网络后重试。' }
 }
 
+if (Get-NetTCPConnection -LocalPort 3010 -State Listen -ErrorAction SilentlyContinue) {
+    Stop-WithMessage '3010 端口已被占用。请关闭已运行的页间或占用该端口的程序后再启动。'
+}
 Write-Host '[页间] 正在启动本地阅读器……' -ForegroundColor Green
 $server = Start-Process -FilePath 'npm.cmd' -ArgumentList @('run', 'dev') -WorkingDirectory $projectDir -NoNewWindow -PassThru
-$url = 'http://localhost:3000/'
+$url = 'http://localhost:3010/'
 $ready = $false
 
 for ($attempt = 0; $attempt -lt 40; $attempt++) {
@@ -40,7 +43,7 @@ for ($attempt = 0; $attempt -lt 40; $attempt++) {
 
 if (-not $ready) {
     if (-not $server.HasExited) { Stop-Process -Id $server.Id -Force }
-    Stop-WithMessage '等待启动超时，请确认 3000 端口没有被其他程序占用。'
+    Stop-WithMessage '等待启动超时，请确认 3010 端口没有被其他程序占用。'
 }
 
 Start-Process $url

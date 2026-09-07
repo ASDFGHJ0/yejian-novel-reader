@@ -1,4 +1,5 @@
 "use client";
+import TtsDiagnostics from "./TtsDiagnostics";
 
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
@@ -174,11 +175,19 @@ export default function ReaderApp() {
     if (IS_NATIVE_APP) return;
     if ("serviceWorker" in navigator) {
       if (process.env.NODE_ENV === "production") {
-        navigator.serviceWorker.register("/sw.js").catch(console.error);
+        navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then(registration => {
+          registration.addEventListener("updatefound", () => {
+            const worker = registration.installing;
+            worker?.addEventListener("statechange", () => {
+              if (worker.state === "installed" && navigator.serviceWorker.controller) setNotice("页间已下载更新，请在完成当前操作后刷新页面。");
+            });
+          });
+          void registration.update().catch(console.error);
+        }).catch(console.error);
       } else {
         // A production service worker must not cache Vite's development client.
         navigator.serviceWorker.getRegistrations()
-          .then(registrations => Promise.all(registrations.map(registration => registration.unregister())))
+          .then(registrations => Promise.all(registrations.filter(registration => new URL((registration.active || registration.waiting || registration.installing)?.scriptURL || "/", location.href).pathname === "/sw.js").map(registration => registration.unregister())))
           .catch(console.error);
         if ("caches" in window) {
           caches.keys()
@@ -256,7 +265,7 @@ export default function ReaderApp() {
       if (token === ttsToken.current) {
         console.error(reason);
         setTtsStatus("idle");
-        setError("听书启动失败，请确认手机已安装中文语音引擎。");
+        setError("听书启动失败：" + (reason instanceof Error ? reason.message : String(reason)));
       }
     }
   }
@@ -813,6 +822,9 @@ export default function ReaderApp() {
     <div className="readingProgress"><i style={{ width: `${readPercent(active)}%` }} /></div>
     {ttsStatus !== "idle" && <div className="ttsBar"><div className="ttsMain"><button onClick={toggleTts}>{ttsStatus === "playing" ? "Ⅱ 暂停" : "▶ 继续"}</button><label>语速 <input type="range" min="0.3" max="4" step="0.1" value={ttsRate} onChange={event => selectTtsRate(+event.target.value)} onPointerUp={() => void applyTtsRate()} /><b>{ttsRate.toFixed(1)}×</b></label><button onClick={() => void stopTts()}>■ 停止</button></div><div className="ttsRates">{[0.5, 1, 1.5, 2, 3, 4].map(rate => <button className={ttsRate === rate ? "on" : ""} onClick={() => void applyTtsRate(rate)} key={rate}>{rate}×</button>)}</div><div className="ttsOptions"><button className={ttsPickStart ? "on" : ""} onClick={() => setTtsPickStart(value => !value)}>{ttsPickStart ? "点击正文段落" : "选择起点"}</button><label className="autoRead"><input type="checkbox" checked={ttsAutoRead} onChange={event => setTtsAutoRead(event.target.checked)} /> 连续朗读下一章</label><label>定时 <select value={ttsDeadline ? "active" : "0"} onChange={event => setSleepTimer(+event.target.value)}><option value="0">关闭</option>{ttsDeadline && <option value="active" disabled>{Math.ceil(ttsRemaining / 60)} 分钟后停止</option>}<option value="15">15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option><option value="90">90 分钟</option></select></label>{ttsDeadline && <b className="ttsCountdown">{String(Math.floor(ttsRemaining / 60)).padStart(2, "0")}:{String(ttsRemaining % 60).padStart(2, "0")}</b>}</div></div>}
     {autoScroll && <div className="autoScrollBar"><b>⇣ 自动阅读</b><div className="autoSpeedChoices" aria-label="滚动速度">{["慢速", "标准", "较快", "快速"].map((label, index) => <button className={autoScrollSpeed === index + 1 ? "on" : ""} onClick={() => setAutoScrollSpeed(index + 1)} key={label}>{label}</button>)}</div><button onClick={() => setAutoScroll(false)}>Ⅱ 暂停</button></div>}
+    {error && <p role="alert" style={{ padding: 12 }}>{error}</p>}
+    <TtsDiagnostics stop={stopTts} lastError={error} />
+    {notice && <p role="status" style={{ padding: 12 }}>{notice}</p>}
     <article className={ttsPickStart ? "pickTtsStart" : ""} onContextMenu={openSelectionMenu} style={{ fontSize: settings.font, lineHeight: settings.lineHeight, maxWidth: settings.width, fontFamily: settings.family === "serif" ? "var(--serif)" : settings.family === "kai" ? "KaiTi, STKaiti, serif" : "Arial, Microsoft YaHei, sans-serif" }}>
       <i>{String(active.current + 1).padStart(2, "0")}</i><h1>{chapter.title}</h1>
       {chapter.content.split(/\n+/).filter(Boolean).map((p, i) => <p className={ttsActiveParagraph === i ? "ttsReading" : ""} data-tts-paragraph={i} key={i} onClick={() => ttsPickStart && void startTtsAtParagraph(i)}>{renderMarkedText(p, (active.notes || []).filter(note => note.chapter === (active.current || 0)))}</p>)}
